@@ -56,38 +56,50 @@ BOOL WriteInfo2(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
 
 int main( int argc, char *argv[])
 {
+	//	Check number of arguments
 	if(argc != 3 && argc != 2)
 	{
 	 	printf("Wrong command. Use **./app -h** for help.\n");
 	 	return 0;
 	 }
 	
+	//	Init library handle
 	void *lib_handle;
 	PCIE_HANDLE hPCIe;
 
+	//	Load PCIE library handle
 	lib_handle = PCIE_Load();
+
+	//	Check PCIE library load
 	if (!lib_handle)
 	{
 		printf("PCIE_Load failed\n");
 		return 0;
 	}
+
+	//	Open PCIE handle
 	hPCIe = PCIE_Open(0,0,0);
 
+	//	Check PCIE handle
 	if (!hPCIe)
 	{
 		printf("PCIE_Open failed\n");
 		return 0;
 	}
 	
+	//	Check arguments
 	char* input = argv[1];
+	//	Demo
 	if (strcmp("-d",input)==0)
 	{
 		Demo(hPCIe, argv[2]);
 	}
+	//	Help Message
 	else if(strcmp("-h",input)==0)
 	{
 		printf("Use **./app -d <imagefilename>** to start demo.\n");	
 	}
+	//	Error Message
 	else {
 		printf("Wrong command. Use **./app -h** for help.\n");
 	}
