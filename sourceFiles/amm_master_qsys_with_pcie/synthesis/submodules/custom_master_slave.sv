@@ -43,7 +43,7 @@ module custom_master_slave #(
 
 );
 
-//	----------	Address parameters	------------
+//	------------	Address parameters	------------
 
 parameter SDRAM_ADDR = 32'h08000000;
 
@@ -164,7 +164,7 @@ always_comb begin
 		begin 
 			if ( rdwr_address[15] ) 
 			begin 
-				nextState = CREATEIMAGE;
+				nextState = CHECKSTARTBYTE;
 				nextAddress = INP_IMG_START_ADDR;
 			end 
 			else 
@@ -187,7 +187,7 @@ always_comb begin
 
 		CREATEIMAGE :
 		begin
-			if ( !master_waitrequest && rdwr_address[14] ) 
+			if ( !master_waitrequest ) 
 			begin 
 				if (address < INP_IMG_END_ADDR )
 				begin
@@ -203,9 +203,17 @@ always_comb begin
 
 		WRITESTARTBYTE:
 		begin
-			if( !master_waitrequest && rdwr_address[13] )
+			if( !master_waitrequest )
 			begin
 				nextState = CHECKSTARTBYTE;
+			end
+		end
+
+		WRITESTOPBYTE:
+		begin
+			if( !master_waitrequest )
+			begin
+				nextState = IMAGEDONE;
 			end
 		end
 
@@ -231,7 +239,7 @@ always_comb begin
 				end
 				else
 				begin
-					nextState = IMAGEDONE;
+					nextState = WRITESTOPBYTE;
 				end
 			end
 		end 
@@ -270,6 +278,10 @@ always_comb begin
 		begin
 		end
 
+		IMAGEDONE:
+		begin
+		end
+
 		CHECKSTARTBYTE:
 		begin
 			master_read = 1;
@@ -296,6 +308,13 @@ always_comb begin
 			master_writedata = START_BYTE;
 		end
 
+		WRITESTOPBYTE:
+		begin
+			master_write = 1;
+			master_address = STOP_BYTE_ADDR;
+			master_writedata = STOP_BYTE;
+		end
+
 		CREATEIMAGE:
 		begin
 			master_write = 1;
@@ -306,7 +325,7 @@ always_comb begin
 	endcase
 
 end
-
 endmodule
+
 
 
