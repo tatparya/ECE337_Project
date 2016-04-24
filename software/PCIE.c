@@ -71,19 +71,19 @@ void *PCIE_Load(void){
 	}
 
 	if(bSuccess){
-		PCIE_Open = dlsym(lib_handle, "PCIE_Open");
-		PCIE_Close = dlsym(lib_handle, "PCIE_Close");
-		PCIE_Read32 = dlsym(lib_handle, "PCIE_Read32");
-		PCIE_Write32 = dlsym(lib_handle, "PCIE_Write32");
-		PCIE_Read16 = dlsym(lib_handle, "PCIE_Read16");
-		PCIE_Write16 = dlsym(lib_handle, "PCIE_Write16");
-		PCIE_Read8 = dlsym(lib_handle, "PCIE_Read8");
-		PCIE_Write8 = dlsym(lib_handle, "PCIE_Write8");
-		PCIE_DmaWrite = dlsym(lib_handle, "PCIE_DmaWrite");
-		PCIE_DmaRead = dlsym(lib_handle, "PCIE_DmaRead");
-		PCIE_DmaFifoWrite = dlsym(lib_handle, "PCIE_DmaFifoWrite");
-		PCIE_DmaFifoRead = dlsym(lib_handle, "PCIE_DmaFifoRead");
-		if (!PCIE_Open || !PCIE_Close ||
+		PCIE_Open 			=	dlsym(lib_handle, "PCIE_Open");
+		PCIE_Close 			=	dlsym(lib_handle, "PCIE_Close");
+		PCIE_Read32 		=	dlsym(lib_handle, "PCIE_Read32");
+		PCIE_Write32 		=	dlsym(lib_handle, "PCIE_Write32");
+		PCIE_Read16 		=	dlsym(lib_handle, "PCIE_Read16");
+		PCIE_Write16 		=	dlsym(lib_handle, "PCIE_Write16");
+		PCIE_Read8 			=	dlsym(lib_handle, "PCIE_Read8");
+		PCIE_Write8 		=	dlsym(lib_handle, "PCIE_Write8");
+		PCIE_DmaWrite 		=	dlsym(lib_handle, "PCIE_DmaWrite");
+		PCIE_DmaRead 		=	dlsym(lib_handle, "PCIE_DmaRead");
+		PCIE_DmaFifoWrite 	=	dlsym(lib_handle, "PCIE_DmaFifoWrite");
+		PCIE_DmaFifoRead 	=	dlsym(lib_handle, "PCIE_DmaFifoRead");
+		if (!PCIE_Open || !PCIE_Close ||l
 		    !PCIE_Read32 || !PCIE_Write32 ||
 		    !PCIE_Read16 || !PCIE_Write16 ||
 		    !PCIE_Read8 || !PCIE_Write8 ||

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preferences>
+ <debug showDebugMenu="0" />
+ <systemtable filter="All Interfaces">
+  <columns>
+   <connections preferredWidth="351" />
+   <irq preferredWidth="34" />
+   <name preferredWidth="193" />
+   <description preferredWidth="171" />
+   <export preferredWidth="159" />
+   <inputclock preferredWidth="109" />
+   <tags preferredWidth="41" />
+   <endaddress preferredWidth="93" />
+   <baseaddress preferredWidth="118" />
+  </columns>
+ </systemtable>
+ <library
+   expandedCategories="Library/University Program/Audio &amp; Video,Library/Processors and Peripherals/Peripherals,Library,Library/Processors and Peripherals,Library/University Program,Project,Library/University Program/Audio &amp; Video/Video" />
+ <window width="1723" height="936" x="-8" y="-8" />
+ <generation path="_PROJECT_NAME_" />
+</preferences>

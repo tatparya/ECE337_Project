@@ -127,12 +127,16 @@ void Demo(PCIE_HANDLE hPCIe, char *filename)
 	//printf("\nNow press **KEY1** on board to start processing.\n");
 	while(!checkImageDone(hPCIe));
 	printf("\nProcessing finished.\n");
+
 	if(!NewReadImage(hPCIe, &info))
 		return; //dancing.bmp
+
 	if(!clearMem(hPCIe, &info))
 		return;
+
 	printf("To copy the output image to your own account, use\n scp out.bmp mgXXX@ecegrid.ecn.purdue.edu:~/Desktop/. \n");
 	printf("\n\n");
+
 	return;
 }
 
@@ -229,51 +233,52 @@ BOOL NewReadImage(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info)
 		printf("ERROR: new image is empty.\n");
 		return FALSE;
 	}
-	fwrite(bitmapImage, info->width*info->height*sizeof(unsigned char),1,fp);
-	free(bitmapImage);
-	free(testImage);
-	fclose(fp);
-	printf("New image written to **out.bmp**.\n");
+	fwrite( bitmapImage, info -> width * info -> height * sizeof(unsigned char), 1, fp );
+	free( bitmapImage );
+	free( testImage );
+	fclose( fp );
+	printf( "New image written to **out.bmp**.\n" );
 	return TRUE;
 }
 
 // Write STARTBYTE to slave register in user_module.sv
-BOOL WriteStartByte(PCIE_HANDLE hPCIe)
+BOOL WriteStartByte( PCIE_HANDLE hPCIe )
 {
 	DWORD addr = 0x00000000;
 	BYTE start = 0x53;
 
-	BOOL bPass = PCIE_Write32( hPCIe, pcie_bars[0], addr, start);
-	if(!bPass)
+	BOOL bPass = PCIE_Write32( hPCIe, pcie_bars[0], addr, start );
+	if( !bPass )
 	{
-		printf("ERROR: unsuccessful start byte writing.\n");
+		printf( "ERROR: unsuccessful start byte writing.\n" );
 		return FALSE;
 	}
 	else
-		printf("Start byte written.\n");
+		printf( "Start byte written.\n" );
 	return TRUE;
 }
 
 // Write image info to slave register in user_module.sv
-BOOL WriteInfo2(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info)
+BOOL WriteInfo2( PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info )
 {
 
-	printf("INFO: width = %d pixels; height = %d pixels\n", info->width, info->height);
+	printf("INFO: width = %d pixels; height = %d pixels\n", info -> width, info -> height);
 
-	WORD tempw = info->width;
-	WORD temph = info->height;
+	WORD tempw = info -> width;
+	WORD temph = info -> height;
 
 	DWORD addr = 0x04;
 	//BYTE start = 0x04;
-	PCIE_Write32( hPCIe, pcie_bars[0], addr, *((unsigned char *)&tempw + 1) ) ;  //01
-	addr = addr+4;
-    PCIE_Write32( hPCIe, pcie_bars[0], addr, *((unsigned char *)&tempw + 0)); //f4
-	addr = addr+4;
-	PCIE_Write32( hPCIe, pcie_bars[0], addr, *((unsigned char *)&temph + 1)); //01
-	addr = addr+4;
-	BOOL bPass = PCIE_Write32( hPCIe, pcie_bars[0], addr, *((unsigned char *)&temph + 0)); //4d
+	PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &tempw + 1 ) ); //01
+	addr = addr + 4;
+    PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &tempw + 0 ) ); //f4
+	addr = addr + 4;
+	PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &temph + 1 ) ); //01
+	addr = addr + 4;
+	//	Ask Lucas
+	BOOL bPass = PCIE_Write32( hPCIe, pcie_bars[0], addr, *( ( unsigned char *) &temph + 0 ) ); //4d
 
-	if(!bPass)
+	if( !bPass )
 	{
 		printf("ERROR: unsuccessful image info writing.\n");
 		return FALSE;
@@ -284,36 +289,59 @@ BOOL WriteInfo2(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info)
 }
 
 // Write the image field to SDRAM
-BOOL WriteImage(PCIE_HANDLE hPCIe,  char *filename, BITMAPINFOHEADER *info)
+BOOL WriteImage( PCIE_HANDLE hPCIe, char *filename, BITMAPINFOHEADER *info )
 {
 	FILE * pFile;
  	pFile = fopen(filename,"rb");
 	BITMAPFILEHEADER bitmapFileHeader; 
-  	fread(&bitmapFileHeader, sizeof(BITMAPFILEHEADER),1,pFile);
-	//read the info header
-	fread(info, sizeof(BITMAPINFOHEADER),1,pFile);
 
-	unsigned char *bitmapImage;//image buffer
-	bitmapImage = (unsigned char*)malloc(info->width*info->height*sizeof(unsigned char));
+	//	Read bitmap header
+  	fread(
+  			&bitmapFileHeader, 
+  			sizeof(BITMAPFILEHEADER),
+  			1,
+  			pFile
+  		);
+
+	//	Read the info header
+	fread(
+			info, 
+			sizeof(BITMAPINFOHEADER),
+			1,
+			pFile
+		);
+
+	//	image buffer
+	unsigned char *bitmapImage;	
+	//	Allocate buffer space
+	  = (unsigned char*) malloc( info -> width * info -> height * sizeof( unsigned char ) );
+	//	Check for allocation success
 	if (!bitmapImage)
    	{
+   			// Deallocate space
         	free(bitmapImage);
         	fclose(pFile);
+        	//	Error
 			printf("Image loading failed.\n");
         	return FALSE;
     }
 
-	//read in the bitmap image data
-  	fread(bitmapImage,info->width*info->height*sizeof(unsigned char),1,pFile);
+	//	Read in the bitmap image data
+  	fread(	
+  			bitmapImage,	//	Pointer to memory block
+  			info -> width * info -> height * sizeof(unsigned char),	//	Size of each element
+  			1,				//	Number of elements
+  			pFile			//	Input Steam
+  		);
 	
 	//BYTE tempRGB;
 	DWORD addr = 0x08000000;  //original image written starting from 0x08000000
 	// Write only one pixel to the LSByte and zero pad the rest 24 bits
 	unsigned char *imageDataBuffer;
-	imageDataBuffer = (unsigned char*)malloc(info->width*info->height*4*sizeof(unsigned char));
+	imageDataBuffer = ( unsigned char* ) malloc( info -> width * info -> height * 4 * sizeof( unsigned char ) );
 	int index = 0;
 	int i;
-	for (i = 0; i <info->width*info->height; ++i)
+	for( i = 0; i < info -> width * info -> height; ++i )
 	{
 		imageDataBuffer[index++] = bitmapImage[i];
 		imageDataBuffer[index++] = 0;
@@ -321,7 +349,9 @@ BOOL WriteImage(PCIE_HANDLE hPCIe,  char *filename, BITMAPINFOHEADER *info)
 		imageDataBuffer[index++] = 0;
 	}
 	
-    BOOL bPass = PCIE_DmaWrite(hPCIe, addr, imageDataBuffer, info->width*info->height*4);
+	//	Write image buffer to the SDRAM
+    BOOL bPass = PCIE_DmaWrite( hPCIe, addr, imageDataBuffer, info -> width * info -> height * 4 );
+
 	if(!bPass)
 	{
 		printf("ERROR: unsuccessful image writing.\n");
@@ -332,6 +362,7 @@ BOOL WriteImage(PCIE_HANDLE hPCIe,  char *filename, BITMAPINFOHEADER *info)
 
 	free(bitmapImage);
 	free(imageDataBuffer);
+
 	return TRUE;
 }
 
@@ -342,19 +373,21 @@ BOOL checkImageDone(PCIE_HANDLE hPCIe)
    DWORD addr = 0x00000000;
    BOOL bPass = PCIE_Read8( hPCIe, pcie_bars[0], addr, &b);
    BYTE check = 0x12;
+
    if(bPass)
    {
-      if(b == check)
-      {
-      	//printf("Image done\n");
-		return TRUE;
-      }
-      else
-      {
-      	//printf("Image not done yet\n");
-      	return FALSE;
-      }
+		if(b == check)
+		{
+			//printf("Image done\n");
+			return TRUE;
+		}
+		else
+		{
+			//printf("Image not done yet\n");
+			return FALSE;
+		}
    }
+
    return FALSE;
 }
 
@@ -364,8 +397,8 @@ void test32( PCIE_HANDLE hPCIe, DWORD addr )
 	BOOL bPass;
 	DWORD testVal = 0xf;
 	DWORD readVal;
-
 	WORD i = 0;
+
 	for (i = 0; i < 16 ; i++ )
 	{
 		printf("Testing register %d at addr %x with value %x\n", i, addr, testVal);
@@ -392,6 +425,7 @@ void test32( PCIE_HANDLE hPCIe, DWORD addr )
 		testVal = testVal + 1;
 		addr = addr + 4;
 	}
+
 	return;
 }
 
@@ -438,7 +472,7 @@ BOOL clearMem(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info)
 		return FALSE;
 	}
 
-//	printf("All memory cleared.\n");
+	//	printf("All memory cleared.\n");
 	return TRUE;
 }
 
@@ -482,5 +516,6 @@ void testDMA( PCIE_HANDLE hPCIe, DWORD addr)
 		}
 		i++;
 	}
+	
 	return;
 }
