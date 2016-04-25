@@ -224,36 +224,6 @@ BOOL WriteStartByte( PCIE_HANDLE hPCIe )
 	return TRUE;
 }
 
-// Write image info to slave register in user_module.sv
-BOOL WriteInfo2( PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info )
-{
-
-	printf("INFO: width = %d pixels; height = %d pixels\n", info -> width, info -> height);
-
-	WORD tempw = info -> width;
-	WORD temph = info -> height;
-
-	DWORD addr = 0x04;
-	//BYTE start = 0x04;
-	PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &tempw + 1 ) ); //01
-	addr = addr + 4;
-    PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &tempw + 0 ) ); //f4
-	addr = addr + 4;
-	PCIE_Write32( hPCIe, pcie_bars[0], addr, *( (unsigned char *) &temph + 1 ) ); //01
-	addr = addr + 4;
-	//	Ask Lucas
-	BOOL bPass = PCIE_Write32( hPCIe, pcie_bars[0], addr, *( ( unsigned char *) &temph + 0 ) ); //4d
-
-	if( !bPass )
-	{
-		printf("ERROR: unsuccessful image info writing.\n");
-		return FALSE;
-	}
-	else
-		printf("Image info written.\n");
-	return TRUE;
-}
-
 // Write the image field to SDRAM
 BOOL WriteImage( PCIE_HANDLE hPCIe, char *filename, BITMAPINFOHEADER *info )
 {
@@ -304,7 +274,7 @@ BOOL WriteImage( PCIE_HANDLE hPCIe, char *filename, BITMAPINFOHEADER *info )
   		);
 	
 	//BYTE tempRGB;
-	DWORD addr = 0x09000000;  //original image written starting from 0x08000000
+	DWORD addr = INP_IMG_START_ADDR;  //original image written starting from 0x09000000
 	// Write only one pixel to the LSByte and zero pad the rest 24 bits
 
 	unsigned char *imageDataBuffer;
@@ -342,10 +312,10 @@ BOOL WriteImage( PCIE_HANDLE hPCIe, char *filename, BITMAPINFOHEADER *info )
 // Check whether an image is finished by looking for STOPBYTE in slave register[0]
 BOOL checkImageDone(PCIE_HANDLE hPCIe)
 {
-   BYTE b;
-   DWORD addr = 0x00000000;
-   BOOL bPass = PCIE_Read8( hPCIe, pcie_bars[0], addr, &b);
-   BYTE check = 0x12;
+   DWORD b;
+   DWORD addr = STOP_BYTE_ADDR;
+   BOOL bPass = PCIE_Read32( hPCIe, pcie_bars[0], addr, &b);
+   DWORD check = STOP_BYTE;
 
    if(bPass)
    {
