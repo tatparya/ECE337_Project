@@ -441,26 +441,44 @@ unsigned char * loadColorImage(char *filename, BITMAPINFOHEADER *info)
     	j -= 3;  
     }
 
-	//	Read in the bitmap image data into bitmapImage buffer
-	//printf("Width: %ld\n", info->width);
-	//printf("Height: %ld\n", info->height);
+    int rowSize = 640 * 3;
 
-	//int abd;
-	//scanf("Hello %d:",&abd);
+    for( i = 0; i < 480; i++ )	//	Every row
+    {	
+    	for( j = 0; j < rowSize; j += 3 )	//	For every pixel in row
+    	{
+    		//	First in row 		= 	Last - 2 in row
+    		imageDataBuffer[ i * rowSize + j ] 		= 	imageDataBufferInv[ ( i + 1 ) * rowSize - j - 1 - 2 ];
+    		imageDataBuffer[ i * rowSize + j + 1 ] 	= 	imageDataBufferInv[ ( i + 1 ) * rowSize - j - 1 - 1 ];
+    		imageDataBuffer[ i * rowSize + j + 2 ] 	= 	imageDataBufferInv[ ( i + 1 ) * rowSize - j - 1 ];
+    	}
+    }
 
-	//	Padded image buffer
+    // long int ba1;
+    // long int ba2;
+
+    // for(i = 0 ; i < 480; i++)
+    // {
+    // 	for (j = 0; j < 320; j++)
+    // 	{
+    // 		ba1 = (i*640 + j)*3;
+    // 		ba2 = (i*640 + (639 - j))*3 - 2;
+    		
+    // 		imageDataBuffer[ba1]     = imageDataBufferInv[ba2];
+   	// 		imageDataBuffer[ba2]     = imageDataBufferInv[ba1];
+   	// 		ba1++; ba2++;
+    // 		imageDataBuffer[ba1]     = imageDataBufferInv[ba2];
+   	// 		imageDataBuffer[ba2]     = imageDataBufferInv[ba1];
+   	// 		ba1++; ba2++;
+    // 		imageDataBuffer[ba1]     = imageDataBufferInv[ba2];
+   	// 		imageDataBuffer[ba2]     = imageDataBufferInv[ba1];
+    // 	}
+    // }
+
 	
-	//	Clear image buffer
-	//for (i = 0; i <640 * 480; ++i)
-	//{
-	//	imageDataBuffer[index++] = 0;
-	//	imageDataBuffer[index++] = 0;
-	//	imageDataBuffer[index++] = 0;
-	//}
-	
-	free( imageDataBuffer );
+	free( imageDataBufferInv );
 
-	return imageDataBufferInv;
+	return imageDataBuffer;
 }
 
 // Load the image field to buffer
