@@ -58,8 +58,8 @@ typedef struct tagBITMAPFILEHEADER
 typedef struct tagBITMAPINFOHEADER
 {
     WORD dummy1;  //specifies the number of bytes required by the struct
-    /*signed int*/ WORD  width;  //specifies width in pixels
-    /*signed int*/ WORD dummy2;  //species height in pixels
+    WORD  width;  //specifies width in pixels
+    WORD dummy2;  //species height in pixels
     WORD height;
     DWORD dummy3;
     WORD biPlanes; //specifies the number of color planes, must be 1
@@ -72,28 +72,29 @@ typedef struct tagBITMAPINFOHEADER
     DWORD biClrImportant;  //number of colors that are important
 }BITMAPINFOHEADER;
 
-void test32( PCIE_HANDLE hPCIe, DWORD addr );
-void testDMA( PCIE_HANDLE hPCIe, DWORD addr);
+void test32		( PCIE_HANDLE hPCIe, DWORD addr );
+void testDMA	( PCIE_HANDLE hPCIe, DWORD addr);
 
-BOOL WriteStartByte(PCIE_HANDLE hPCIe);
-BOOL ClearStartByte(PCIE_HANDLE hPCIe);
-BOOL ClearStatusByte(PCIE_HANDLE hPCIe);
-BOOL ClearDataWord(PCIE_HANDLE hPCIe);
+BOOL WriteStartByte		(PCIE_HANDLE hPCIe);
+BOOL ClearStartByte		(PCIE_HANDLE hPCIe);
+BOOL ClearStatusByte	(PCIE_HANDLE hPCIe);
+BOOL ClearDataWord		(PCIE_HANDLE hPCIe);
 
-BYTE getStatus(PCIE_HANDLE hPCIe);
-BOOL WriteStatus(PCIE_HANDLE hPCIe, DWORD status);
-BOOL WriteData(PCIE_HANDLE hPCIe, DWORD data);
+BYTE checkStatus		(PCIE_HANDLE hPCIe);
+BOOL WriteStatus		(PCIE_HANDLE hPCIe, DWORD status);
+BOOL WriteData			(PCIE_HANDLE hPCIe, DWORD data);
 
-unsigned char * loadImage(char *filename, BITMAPINFOHEADER *info);
+unsigned char * loadImage	(char *filename, BITMAPINFOHEADER *info);
+unsigned char * loadColorImage  (char *filename, BITMAPINFOHEADER *info);
 
-BOOL WriteInfo2(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
-BOOL checkImageDone(PCIE_HANDLE hPCIe);
+BOOL WriteInfo2			(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
+BOOL checkImageDone		(PCIE_HANDLE hPCIe);
 
-BOOL clearMem(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
-BOOL NewReadImage(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
+BOOL clearMem			(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
+BOOL NewReadImage		(PCIE_HANDLE hPCIe, BITMAPINFOHEADER *info);
 
-void DemoMyWay(PCIE_HANDLE hPCIe, char *filename);
-void DemoMyWayImage(char *filename);
+void DemoMyWay 			(PCIE_HANDLE hPCIe, char *filename, char imageType);
+void DemoMyWayImage		(char *filename);
 
 int main( int argc, char *argv[])
 {
@@ -144,10 +145,16 @@ int main( int argc, char *argv[])
 	
 	//	Check arguments
 
-	if (strcmp("-d",input)==0)
+	if (strcmp("-c",input)==0)
 	{
 		//	Start main process
-		DemoMyWay(hPCIe, argv[2]);
+		DemoMyWay(hPCIe, argv[2], 'c');
+		//Demo(hPCIe, argv[2]);
+	}
+	else if (strcmp("-g",input)==0)
+	{
+		//	Start main process
+		DemoMyWay(hPCIe, argv[2], 'g');
 		//Demo(hPCIe, argv[2]);
 	}
 	//	Help Message
@@ -170,19 +177,21 @@ void DemoMyWayImage(char *filename)
 {
 	BITMAPINFOHEADER info;
 	unsigned char * imageDataBuffer;
-	imageDataBuffer = loadImage(filename, &info);
+	imageDataBuffer = loadColorImage(filename, &info);
 	long int i, index;
 	index = 0;
+	unsigned char zero = 0;
 	DWORD pixelValue;
 	for (i = 0; i <(640)*(480); ++i)
 	{
-		pixelValue =  ( (imageDataBuffer[index] << 24) | (imageDataBuffer[index+1] << 16) | (imageDataBuffer[index+2] << 8) | (imageDataBuffer[index+3] << 0) );
+		pixelValue =  ( (zero << 24) | (imageDataBuffer[index] << 16) | (imageDataBuffer[index+1] << 8) | (imageDataBuffer[index+2] << 0) );
 		printf("%ld %hx\n", i, pixelValue);
-		index = index + 4;
+		index = index + 3;
 	}
 	free(imageDataBuffer);
 }
-void DemoMyWay(PCIE_HANDLE hPCIe, char *filename)
+
+void DemoMyWay(PCIE_HANDLE hPCIe, char *filename, char imageType)
 {
 	
 	//	Clear start byte
@@ -205,40 +214,59 @@ void DemoMyWay(PCIE_HANDLE hPCIe, char *filename)
 	if(!WriteStartByte(hPCIe))
 		return;
 
-	////////////////////
-	// Store image in buffer
+	//	------------	Store image data into buffer	------------
+
 	printf("Loading image into buffer\n");
 	BITMAPINFOHEADER info;
 	unsigned char * imageDataBuffer;
-	imageDataBuffer = loadImage(filename, &info);
-	long int index;
-	index = 0;
-	printf("Image loaded into buffer\n");
-	///////////////////////////////
+	imageDataBuffer = loadColorImage(filename, &info);
 
+	long int i, index = 0;
 	DWORD pixelValue;
-	long int i;
-	for (i = 0; i < (640 * 480); i++)
-	{
-		pixelValue =  ( (imageDataBuffer[index] << 24) | (imageDataBuffer[index+1] << 16) | (imageDataBuffer[index+2] << 8) | (imageDataBuffer[index+3] << 0) );
-		printf("%ld %hx\n", i, pixelValue);
-		index = index + 4;
-		if(!WriteData(hPCIe, pixelValue)) return;
-		if(!WriteStatus(hPCIe, COPY_BYTE)) return;
-		while(getStatus(hPCIe) != 0x13); // NEXT_BYTE
+	unsigned char zero = 0;
+	// Test Image
+	//for (i = 0; i <(640)*(480); ++i)
+	//{
+	//	pixelValue =  ( (imageDataBuffer[index] << 24) | (imageDataBuffer[index] << 16) | (imageDataBuffer[index+1] << 8) | (imageDataBuffer[index+2] << 0) );
+	//	printf("%ld %hx\n", i, pixelValue);
+	//	index = index + 3;
+	//}
 
+	//int a;
+	//printf("Hello: ");
+	//scanf("%d", &a);
+	//index = 0;
+	printf("Image loaded into buffer\n");
+
+	//	------------	Writing image to the FPGA	------------
+
+	
+	
+	for (i = 0; i <(640)*(480); ++i)
+	{
+		pixelValue =  ( (zero << 24) | (imageDataBuffer[index] << 16) | (imageDataBuffer[index+1] << 8) | (imageDataBuffer[index+2] << 0) );
+		printf("%ld %hx\n", i, pixelValue);
+		index = index + 3;
+		//	Check for write to slave register
+		if(!WriteData(hPCIe, pixelValue)) return;
+		//	Write COPY BYTE to status slave register
+		if(!WriteStatus(hPCIe, COPY_BYTE)) return;
+		//	Check for NEXT BYTE status
+		while(checkStatus(hPCIe) != 0x13);
 	}
+	//	Write LAST PIX status
 	if(!WriteStatus(hPCIe, LASTPIX_BYTE)) return;
 
+	//	------------	Done writing image, checking stop byte form FPGA	------------
+
 	printf("\nChecking for stop byte!\n");
+
 	//	Check for stop byte done
 	while(!checkImageDone(hPCIe));
 	printf("\nProcessing finished.\n");
+	//free(imageDataBuffer);
 	
 }
-
-
-
 
 // Clear STARTBYTE in SDRAM
 BOOL ClearStartByte( PCIE_HANDLE hPCIe )
@@ -339,7 +367,7 @@ BOOL WriteStatus( PCIE_HANDLE hPCIe, DWORD status )
 	return TRUE;
 }
 
-BYTE getStatus(PCIE_HANDLE hPCIe)
+BYTE checkStatus(PCIE_HANDLE hPCIe)
 {
    BYTE b;
    DWORD addr = STATUS_BYTE_ADDR;
@@ -377,6 +405,65 @@ BOOL WriteStartByte( PCIE_HANDLE hPCIe )
 }
 
 // Load the image field to buffer
+unsigned char * loadColorImage(char *filename, BITMAPINFOHEADER *info)
+{
+	FILE * pFile;
+ 	pFile = fopen(filename,"rb");
+	BITMAPFILEHEADER bitmapFileHeader; 
+  	fread(&bitmapFileHeader, sizeof(BITMAPFILEHEADER),1,pFile);
+	//read the info header
+	fread(info, sizeof(BITMAPINFOHEADER),1,pFile);
+
+	unsigned char *imageDataBuffer;
+	imageDataBuffer = (unsigned char*)malloc(640*480*3*sizeof(unsigned char));
+
+	unsigned char *imageDataBufferInv;
+	imageDataBufferInv = (unsigned char*)malloc(640*480*3*sizeof(unsigned char));
+
+	fread(imageDataBuffer,640*480*3*sizeof(unsigned char),1,pFile);
+
+
+	if (!imageDataBuffer)
+   	{
+        	free(imageDataBuffer);
+        	fclose(pFile);
+			printf("Image loading failed.\n");
+        	
+    }
+
+    long int i;
+    long int j = 640 * 480 * 3 - 1;
+    for( i = 0; i < 640*480*3; i+=3 )
+    {
+    	imageDataBufferInv[j-2] = imageDataBuffer[i]; 
+    	imageDataBufferInv[j-1] = imageDataBuffer[i+2];  
+    	imageDataBufferInv[j] = imageDataBuffer[i+1]; 
+    	j -= 3;  
+    }
+
+	//	Read in the bitmap image data into bitmapImage buffer
+	//printf("Width: %ld\n", info->width);
+	//printf("Height: %ld\n", info->height);
+
+	//int abd;
+	//scanf("Hello %d:",&abd);
+
+	//	Padded image buffer
+	
+	//	Clear image buffer
+	//for (i = 0; i <640 * 480; ++i)
+	//{
+	//	imageDataBuffer[index++] = 0;
+	//	imageDataBuffer[index++] = 0;
+	//	imageDataBuffer[index++] = 0;
+	//}
+	
+	free( imageDataBuffer );
+
+	return imageDataBufferInv;
+}
+
+// Load the image field to buffer
 unsigned char * loadImage(char *filename, BITMAPINFOHEADER *info)
 {
 	FILE * pFile;
@@ -396,14 +483,25 @@ unsigned char * loadImage(char *filename, BITMAPINFOHEADER *info)
         	
     }
 
-	//read in the bitmap image data
+	//	Read in the bitmap image data into bitmapImage buffer
   	fread(bitmapImage,info->width*info->height*sizeof(unsigned char),1,pFile);
 	
+	//	Padded image buffer
 	unsigned char *imageDataBuffer;
 	imageDataBuffer = (unsigned char*)malloc(640*480*4*sizeof(unsigned char));
 	int index = 0;
-	int i;
+	int i,j;
 
+	for( i = 0; i < 640; i++ )
+	{
+		for( j = 0; j < 480; j++ )
+		{
+			printf("%d ", bitmapImage[i] );
+		}
+		printf( "\n" );
+	}
+
+	//	Clear image buffer
 	for (i = 0; i <640 * 480; ++i)
 	{
 		imageDataBuffer[index++] = 0;
@@ -412,6 +510,8 @@ unsigned char * loadImage(char *filename, BITMAPINFOHEADER *info)
 		imageDataBuffer[index++] = 0;
 	}
 	index = 0;
+
+	//	Fill image buffer
 	for (i = 0; i <info->width*info->height; ++i)
 	{
 		imageDataBuffer[index++] = 0;
@@ -419,7 +519,6 @@ unsigned char * loadImage(char *filename, BITMAPINFOHEADER *info)
 		imageDataBuffer[index++] = bitmapImage[i];
 		imageDataBuffer[index++] = bitmapImage[i];
 	}
-
 	
 	free(bitmapImage);
 	return imageDataBuffer;
