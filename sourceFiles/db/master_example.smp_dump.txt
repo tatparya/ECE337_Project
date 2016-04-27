@@ -132,3 +132,12 @@ rst_ctrl_sm.strobe_txpll_locked 0 0
 rst_ctrl_sm.idle 0 1 
 rst_ctrl_sm.stable_tx_pll 1 1 
 rst_ctrl_sm.wait_state 1 0 
+
+State Machine - |master_example|amm_master_qsys_with_pcie:amm_master_inst|custom_master_slave:custom_module|edgeDetection2:edgeDetectModule|controller2:controller|state
+Name state.writing state.error state.storeGray state.waitForData state.generateAddress state.idle 
+state.idle 0 0 0 0 0 0 
+state.generateAddress 0 0 0 0 1 1 
+state.waitForData 0 0 0 1 0 1 
+state.storeGray 0 0 1 0 0 1 
+state.error 0 1 0 0 0 1 
+state.writing 1 0 0 0 0 1 

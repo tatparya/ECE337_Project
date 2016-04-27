@@ -51,6 +51,9 @@ parameter SDRAM_ADDR = 32'h08000000;
 parameter VGA_START_ADDR 		= 	32'h08000000;
 //	VGA end address
 parameter VGA_END_ADDR 			= 	32'h0812C000;
+// Last write address
+parameter LAST_WRITE_ADDR 	=  32'h0812B0F1;
+
 
 //	Start byte address
 parameter START_BYTE_ADDR 		= 	32'h00000000;
@@ -72,6 +75,8 @@ parameter INP_IMG_START_ADDR 	= 	32'h09000000;
 //	Input image end address
 parameter INP_IMG_END_ADDR 		= 	32'h0912C000;
 
+parameter IMG_SIZE				=	32'h4A196;
+
 logic [MASTER_ADDRESSWIDTH-1:0] address, nextAddress;
 logic [MASTER_ADDRESSWIDTH-1:0] writeAddress, nextWriteAddress;
 logic [MASTER_ADDRESSWIDTH-1:0] readAddress, nextReadAddress;
@@ -86,6 +91,17 @@ logic color;
 logic [31:0]	writeColor;
 logic [31:0]	readColor;
 logic [31:0]	nextReadColor;
+logic [9:0] columnCount;
+logic [9:0] nextColumnCount;
+
+logic [9:0] slantCount;
+logic [9:0] nextslantCount;
+
+logic [31:0] rPC;
+logic [31:0] nRPC;
+logic [31:0] wPC;
+logic [31:0] nWPC;
+
 logic readDone;
 logic w_image_done;
 logic w_pixel_written;
@@ -93,27 +109,99 @@ logic w_pixel_written;
 //	----------	State Definitions	------------
 
 typedef enum {	
-				IDLE, 			//	0000
-				CHECKSTARTBYTE,//	0001
-				CHECKSTATUS,	// 0010
-				COPYPIXEL,		// 0011
-				ASSERTNEXTBYTE,// 0100
-				STARTPROCESS,  // 0101
-				READCOLOR,		// 0110
-				WRITECOLOR,		// 0111
-				IMAGEDONE		//	1000
-				//GETCOLOR,		//	0101
-				//VGAPAINT,			//	110
-				//VGAPAINTNORMAL		//	110
+				IDLE, 				//	0000
+				CHECKSTARTBYTE,	//	0001
+				CHECKSTATUS,		// 0010
+				COPYPIXEL,			// 0011
+				ASSERTNEXTBYTE,	// 0100
+				STARTPROCESS,  	// 0101
+
+				CHECKENABLE,		//	0110: Check for read / write enable
+				READPIXEL,			//	0111: Read a pixel and pass to custom logic
+				READDONE,			// 	1000: 
+				READDONE2,			// 	1001: 
+				WRITEPIXEL,			//	1010: Write pixel from custom logic
+				WRITEDONE,			// 	1011
+				WRITEDONE2,			
+
+				READCOLOR,			// 	1100
+				WRITECOLOR,			// 	1101
+				IMAGEDONE,			//	1110
+				PREIMAGEDONE
+				//GETCOLOR,			//	
+				//VGAPAINT,			//	
+				//VGAPAINTNORMAL	//	
 			} state_t;
 state_t state, nextState;
 
-custom_data_writer customWriter (.r(rdwr_address[2]), .g(rdwr_address[1]), .b(rdwr_address[0]), .data(writeColor));
+//	Sobel inputs
+logic NReset;
+logic nextNReset;
+logic [ 31:0 ] startSignal_i;
+logic [ 31:0 ] next_startSignal_i;
+logic [ 31:0 ] inputData_i;
+logic [ 31:0 ] next_inputData_i;
+logic [ 31:0 ] rwError_i;
+logic [ 31:0 ] next_rwError_i;
+logic [ 31:0 ] readDone_i;
+logic [ 31:0 ] next_readDone_i;
+logic [ 31:0 ] writeDone_i;
+logic [ 31:0 ] next_writeDone_i;
+
+//	Sobel Outputs
+logic [ 31:0 ] readAddress_i;
+logic [ 31:0 ] writeAddress_i;
+logic [ 31:0 ] writeAddress_i_calculated_by_sid;
+logic [ 31:0 ] outputData_i;
+logic [ 31:0 ] readEnable_i;
+logic [ 31:0 ] writeEnable_i;
+logic [ 31:0 ] outputError_i;
+
+logic [ 31:0 ] numProcessedPixels;
+logic [ 31:0 ] nextNumProcessedPixels;
+
+//custom_data_writer customWriter (.r(rdwr_address[2]), .g(rdwr_address[1]), .b(rdwr_address[0]), .data(writeColor));
+
+edgeDetection2 edgeDetectModule( 	.clk			( clk ),
+									.n_rst			( NReset ),
+									.startSignal	( startSignal_i ),
+									.inputData		( inputData_i ),
+									.rwError		( rwError_i ),
+									.readDone		( readDone_i ),
+									.writeDone		( writeDone_i ),
+
+									.readAddress	( readAddress_i ),
+									.writeAddress	( writeAddress_i ),
+									.outputData		( outputData_i ),
+									.readEnable		( readEnable_i ),
+									.writeEnable	( writeEnable_i ),
+									.outputError	( outputError_i )
+									);
 
 //	7 seg display
 always_comb
 begin
-	if( rdwr_address[0] )
+
+	if( rdwr_address[0] && rdwr_address[1] )
+	begin
+		display_data = { readEnable_i[15:0], writeEnable_i[15:0] };
+	end
+	else if( rdwr_address[0] && rdwr_address[2] )
+	begin
+		display_data = outputData_i;
+	end
+
+	if( rdwr_address[0] && rdwr_address[3] )
+	begin
+		display_data = rPC;
+	end
+	else if( rdwr_address[0] && rdwr_address[4] )
+	begin
+		display_data = wPC;
+	end
+
+
+	else if( rdwr_address[0] )
 	begin
 		display_data = 
 			{
@@ -189,8 +277,32 @@ begin
 	end
 end
 
+//	Custom State Registers Logic
+always_ff @ ( posedge clk ) begin 
+	if (!reset_n) 
+	begin
+		startSignal_i	<=	32'd0;
+		inputData_i		<=	32'd0;
+		rwError_i		<=	32'd0;
+		readDone_i		<=	32'd0;
+		writeDone_i		<=	32'd0;
+		numProcessedPixels <= 32'd0;
+		slantCount		<=	0;
+	end else 
+	begin
+		startSignal_i		<=	next_startSignal_i;
+		inputData_i			<=	next_inputData_i;
+		rwError_i			<=	next_rwError_i;
+		readDone_i			<=	next_readDone_i;
+		writeDone_i			<=	next_writeDone_i;
+		numProcessedPixels 	<= 	nextNumProcessedPixels;
+		nextslantCount		<=	nextslantCount;
+	end
+end
+
 // Master Side 
-logic pixelCount;
+
+
 //	State Register Logic
 always_ff @ ( posedge clk ) begin 
 	if (!reset_n) begin 
@@ -199,12 +311,23 @@ always_ff @ ( posedge clk ) begin
 		readColor 		<= 32'h0;
 		readAddress 	<= INP_IMG_START_ADDR;
 		writeAddress 	<= VGA_START_ADDR;
-	end else begin 
+		columnCount 	<= 0;
+		NReset 			<= 0;
+		rPC				<= 0;
+		wPC				<= 0;
+
+		end else begin 
 		state 			<= nextState;
-		address 		<= nextAddress;
+		address 			<= nextAddress;
 		readColor 		<= nextReadColor;
 		readAddress 	<= nextReadAddress;
 		writeAddress 	<= nextWriteAddress;
+		columnCount		<= nextColumnCount;
+		NReset 		   <= nextNReset;
+		
+		rPC				<= nRPC;
+		wPC				<= nWPC;
+		
 	end
 end
 
@@ -215,7 +338,20 @@ always_comb begin
 	nextReadColor 		= 	readColor;
 	nextReadAddress 	= 	readAddress;
 	nextWriteAddress 	= 	writeAddress;
-	
+
+	nextNumProcessedPixels = numProcessedPixels;
+	nextslantCount 		= slantCount;
+
+	next_startSignal_i	= 	startSignal_i;
+	next_inputData_i	= 	inputData_i;
+	next_rwError_i		= 	rwError_i;
+	next_readDone_i		= 	readDone_i;
+	next_writeDone_i	= 	writeDone_i;
+	nextNReset = NReset;
+	nextColumnCount = columnCount;
+
+	nRPC = rPC;
+	nWPC = wPC;
 	case( state ) 
 		//	IDLE State
 		IDLE : 
@@ -223,6 +359,7 @@ always_comb begin
 			if ( rdwr_cntl ) 
 			begin 
 				nextState = CHECKSTARTBYTE;
+				nextNReset = 0;
 			end 
 			else 
 			begin
@@ -235,18 +372,20 @@ always_comb begin
 		CHECKSTARTBYTE : 
 		begin 
 			//	RESET
-			if( rdwr_address[10] )
+			if( rdwr_address[9] )
 			begin
 				nextState = IDLE;
 			end
 			//	Check start byte
 			if( ( csr_registers[0] == START_BYTE ) && add_data_sel )
 			begin
-				nextState = CHECKSTATUS;
-				nextAddress = INP_IMG_START_ADDR;
+				nextState = 	CHECKSTATUS;
+				nextAddress = 	INP_IMG_START_ADDR;
+				nextNReset = 1;
 			end
 		end 
 
+		//	Check status on slave status register
 		CHECKSTATUS:
 		begin
 			if( rdwr_address[15] )
@@ -270,6 +409,7 @@ always_comb begin
 			end
 		end 
 
+		//	Get data from slave register
 		COPYPIXEL:
 		begin 
 			if( rdwr_address[14] )
@@ -282,21 +422,148 @@ always_comb begin
 			end
 		end 
 
+		//	Write NEXT status to slave register
 		ASSERTNEXTBYTE:
 		begin
 			nextState = CHECKSTATUS;
 		end
 
-
+		//	Start processing image
 		STARTPROCESS:
 		begin
 			if(rdwr_address[13])
 			begin
-				nextState = READCOLOR;
+				if(!rdwr_address[1])	nextState = CHECKENABLE;
+				else nextState = READCOLOR;
 				nextReadAddress = INP_IMG_START_ADDR;
 				nextWriteAddress = VGA_START_ADDR;
+				
+				//	Custom logic stuff
+				next_startSignal_i	=	32'd1;
+				next_inputData_i	=	32'd0;
+				next_rwError_i		=	32'd0;
+				next_readDone_i		=	32'd0;
+				next_writeDone_i	=	32'd0;
+
+				nextNumProcessedPixels = 32'd0;
+				
+				nextWriteAddress = VGA_START_ADDR;
+				nextColumnCount  = 0;
+				
+				nRPC = 32'd0;
+				nWPC = 32'd0;
 			end
 		end
+
+		CHECKENABLE	:
+		begin
+			if(rdwr_address[12])
+			begin
+
+				if(writeAddress >= LAST_WRITE_ADDR || nextNumProcessedPixels > IMG_SIZE)	//	Exit condition
+				begin
+					//nextReadAddress = INP_IMG_START_ADDR;
+					//nextWriteAddress = VGA_START_ADDR;
+					nextState = PREIMAGEDONE;
+				end
+
+				else if( writeEnable_i == 1 )	//	Writing the pixel from custom logic
+				begin
+					//	Write pixel data to VGA output
+					nextState = WRITEPIXEL;
+					next_writeDone_i = 0;
+					nextWriteAddress = writeAddress;
+				end
+
+				else if( readEnable_i == 1 )	//	Read a pixel to custom logic
+				begin
+					//	Pass data into custom logic
+					nextState = READPIXEL;
+					next_readDone_i = 0;
+					nextReadAddress = INP_IMG_START_ADDR + (readAddress_i);
+				end
+
+				else
+				begin
+					nextState = CHECKENABLE;
+				end
+			end
+		end
+
+		READPIXEL	:
+		begin
+
+		if(rdwr_address[11])
+		begin
+			if( master_readdatavalid )
+				begin
+					nextState = READDONE;
+					next_inputData_i = master_readdata;
+					next_readDone_i = 1;
+					nRPC = rPC + 1;
+				end
+			end
+		end
+
+		READDONE	:
+		begin
+			nextState = READDONE2;
+			next_readDone_i = 1;
+		end
+
+		READDONE2	:
+		begin
+			nextState = CHECKENABLE;
+			next_readDone_i = 0;
+		end
+
+		WRITEPIXEL	:
+		begin
+			if( !master_waitrequest )
+			begin
+				nextState = WRITEDONE;
+				next_writeDone_i = 1;
+				nWPC = wPC + 1;
+			end
+			else
+			begin
+				nextState = WRITEPIXEL;
+			end
+		end
+		
+
+		WRITEDONE	:
+		begin
+			if(rdwr_address[10])
+			begin
+				if(columnCount == 10'd637)
+				begin
+					nextColumnCount = 0;
+
+					if( slantCount >= 10 )
+						nextWriteAddress = writeAddress + 16;
+					else
+						nextWriteAddress = writeAddress + 12; // Accounting for padding
+
+					nextslantCount = slantCount + 1;
+				end
+				else
+				begin
+					nextColumnCount = columnCount + 1;
+					nextWriteAddress = writeAddress + 4; // Normal
+				end
+				next_writeDone_i = 1;
+				nextState = WRITEDONE2;
+			end
+		end
+
+		WRITEDONE2	:
+		begin
+			nextState = CHECKENABLE;
+			nextNumProcessedPixels = numProcessedPixels + 1;
+			next_writeDone_i = 0;
+		end
+
 		//	Read Color from SDRAM memory
 		READCOLOR : 
 		begin 
@@ -311,7 +578,7 @@ always_comb begin
 					end
 					else
 					begin
-						nextState = IMAGEDONE;
+						nextState = PREIMAGEDONE;
 					end
 				end
 			end
@@ -332,9 +599,27 @@ always_comb begin
 				end
 			end 
 		end
+		
+		//	End process state
+		PREIMAGEDONE :
+		begin
+			if( rdwr_address[9] )
+			begin
+				nextState = STARTPROCESS;
+			end
+			else if( rdwr_address[8] )
+			begin
+				nextState = IMAGEDONE;
+			end
+			else
+			begin
+				nextState = PREIMAGEDONE;
+				//nextAddress = VGA_START_ADDR;
+			end
+		end
 		IMAGEDONE :
 		begin
-			if( rdwr_address[10] )
+			if( rdwr_address[7] )
 			begin
 				nextState = IDLE;
 			end
@@ -347,7 +632,6 @@ always_comb begin
 
 		/*
 		
-
 		GETCOLOR:
 		begin
 			if( master_readdatavalid && rdwr_address[13])
@@ -392,8 +676,6 @@ always_comb begin
 			end
 		end
 
-
-
 		*/
 
 		//	Default state
@@ -422,14 +704,12 @@ always_comb begin
 
 		IDLE:
 		begin
-			pixelCount = 0;
 		end
 
 
 		CHECKSTARTBYTE:
 		begin
 		end
-
 
 		COPYPIXEL:
 		begin
@@ -446,7 +726,40 @@ always_comb begin
 		STARTPROCESS:
 		begin
 		end
-		
+
+		CHECKENABLE	:
+		begin
+		end
+
+		READPIXEL	:
+		begin
+			master_read = 1;
+			master_address = readAddress;
+		end
+
+		READDONE	:
+		begin
+		end
+
+		READDONE2	:
+		begin
+		end
+
+		WRITEPIXEL	:
+		begin
+			master_write = 1;
+			master_address = writeAddress;		
+			master_writedata = ( outputData_i[7:0] > 100 ) ? 32'h00FFFFFF : 32'd0;
+			// master_writedata = {8'b0, outputData_i[7:0], outputData_i[7:0], outputData_i[7:0]};
+		end
+
+		WRITEDONE	:
+		begin
+		end
+
+		WRITEDONE2	:
+		begin
+		end		
 	
 		READCOLOR:
 		begin

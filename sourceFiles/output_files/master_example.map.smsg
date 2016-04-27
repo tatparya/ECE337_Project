@@ -33,5 +33,7 @@ Info (10281): Verilog HDL Declaration information at amm_master_qsys_with_pcie_m
 Warning (10268): Verilog HDL information at altpcie_pcie_reconfig_bridge.v(253): always construct contains both blocking and non-blocking assignments
 Info (10281): Verilog HDL Declaration information at altpciexpav_lite_app.v(172): object "RX_CHECK_HEADER" differs only in case from object "rx_check_header" in the same scope
 Info (10281): Verilog HDL Declaration information at altpciexpav_lite_app.v(167): object "RX_IDLE" differs only in case from object "rx_idle" in the same scope
-Info (10281): Verilog HDL Declaration information at custom_master_slave.sv(81): object "readColor" differs only in case from object "READCOLOR" in the same scope
-Info (10281): Verilog HDL Declaration information at custom_master_slave.sv(80): object "writeColor" differs only in case from object "WRITECOLOR" in the same scope
+Info (10281): Verilog HDL Declaration information at custom_master_slave.sv(105): object "readDone" differs only in case from object "READDONE" in the same scope
+Info (10281): Verilog HDL Declaration information at custom_master_slave.sv(92): object "readColor" differs only in case from object "READCOLOR" in the same scope
+Info (10281): Verilog HDL Declaration information at custom_master_slave.sv(91): object "writeColor" differs only in case from object "WRITECOLOR" in the same scope
+Warning (10268): Verilog HDL information at controller2.sv(121): always construct contains both blocking and non-blocking assignments

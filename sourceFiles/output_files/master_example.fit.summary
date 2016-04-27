@@ -1,14 +1,14 @@
-Fitter Status : Successful - Mon Apr 25 16:17:44 2016
+Fitter Status : Successful - Wed Apr 27 10:47:14 2016
 Quartus II 64-Bit Version : 14.0.0 Build 200 06/17/2014 SJ Full Version
 Revision Name : master_example
 Top-level Entity Name : master_example
 Family : Cyclone IV GX
 Device : EP4CGX150DF31C7
 Timing Models : Final
-Total logic elements : 10,835 / 149,760 ( 7 % )
-    Total combinational functions : 8,347 / 149,760 ( 6 % )
-    Dedicated logic registers : 7,477 / 149,760 ( 5 % )
-Total registers : 7595
+Total logic elements : 11,646 / 149,760 ( 8 % )
+    Total combinational functions : 9,161 / 149,760 ( 6 % )
+    Dedicated logic registers : 7,757 / 149,760 ( 5 % )
+Total registers : 7875
 Total pins : 200 / 508 ( 39 % )
 Total virtual pins : 0
 Total memory bits : 98,276 / 6,635,520 ( 1 % )

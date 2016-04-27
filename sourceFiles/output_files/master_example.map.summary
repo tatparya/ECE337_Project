@@ -1,12 +1,12 @@
-Analysis & Synthesis Status : Successful - Mon Apr 25 16:16:09 2016
+Analysis & Synthesis Status : Successful - Wed Apr 27 10:45:35 2016
 Quartus II 64-Bit Version : 14.0.0 Build 200 06/17/2014 SJ Full Version
 Revision Name : master_example
 Top-level Entity Name : master_example
 Family : Cyclone IV GX
-Total logic elements : 12,152
-    Total combinational functions : 8,317
-    Dedicated logic registers : 7,529
-Total registers : 7529
+Total logic elements : 13,000
+    Total combinational functions : 9,131
+    Dedicated logic registers : 7,809
+Total registers : 7809
 Total pins : 197
 Total virtual pins : 0
 Total memory bits : 98,276
